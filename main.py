@@ -46,26 +46,6 @@ def read_root():
     return {"Code": "201", "ServerResponse": "Welcome to GamingLibrary, an api rest to store games locally \n Also you can add users to manage too your game list"}
 
 
-@app.get("/User")
-def GetAllUsers():
-    try:
-        # Database connection
-        databaseManager = DatabaseManager("pyRestApi.db")
-
-        # Database select query, getting all users
-        select_user_query = '''SELECT * FROM users'''
-        result = databaseManager.make_sql_request(select_user_query)
-
-        if result is not None:
-            return {"Code": "201", "Server Response": result}
-        else:
-            return {"Code": "401", "Server Response": "None existing users"}
-    except:
-        print("Error encountered")
-        raise Exception(
-            "Error encountered when trying to get all existing users")
-
-
 # Post route registering into db new users
 @app.post("/register")
 def register_user(logInformations: LogInformations):
@@ -133,9 +113,50 @@ def modify_username(old_user_name: str, new_user_name: str):
         print("Error encountered")
         raise Exception("An error has been encountered modifying the username")
 
+@app.get("/User")
+def get_all_users():
+    try:
+        # Database connection
+        databaseManager = DatabaseManager("pyRestApi.db")
+
+        # Database select query, getting all users
+        select_user_query = '''SELECT * FROM users'''
+        result = databaseManager.make_sql_request(select_user_query)
+
+        if result is not None:
+            return {"Code": "201", "Server Response": result}
+        else:
+            return {"Code": "401", "Server Response": "None existing users"}
+    except:
+        print("Error encountered")
+        raise Exception(
+            "Error encountered when trying to get all existing users")
+
+
+@app.put("/insertGame")
+def insert_games(gameInformation: GameInformations):
+    try:
+        # Database connection
+        databaseManager = DatabaseManager("pyRestApi.db")
+
+        put_sql_query = '''INSERT INTO games (name, description, genre, annee, pegi) VALUES ("{}", "{}", "{}", {}, {})'''.format(
+            gameInformation.name, gameInformation.description, gameInformation.genre, gameInformation.annee, gameInformation.pegi)
+        result = databaseManager.make_sql_request(put_sql_query)
+
+        databaseManager.close_sql_connection()
+
+        if result != "Done":
+            return {"Code": "401", "Server Response": "Cannot make insert games the request"}
+
+        return {"Code": "201", "Server Response": "Game well added to game library"}
+    except:
+        print("Error encountered")
+        raise Exception(
+            "Error encountered when adding a game into games library")
+
 
 @app.get("/myGames")
-def GetMyGames():
+def get_my_games():
     try:
         # Database connection
         databaseManager = DatabaseManager("pyRestApi.db")
@@ -152,24 +173,6 @@ def GetMyGames():
         print("Error encountered")
         raise Exception(
             "Error encountered when getting all games from games library")
-
-
-@app.put("/insertGame")
-def insert_games(gameInformation: GameInformations):
-    # Database connection
-    databaseManager = DatabaseManager("pyRestApi.db")
-
-    put_sql_query = '''INSERT INTO games (name, description, genre, annee, pegi) VALUES ("{}", "{}", "{}", {}, {})'''.format(
-        gameInformation.name, gameInformation.description, gameInformation.genre, gameInformation.annee, gameInformation.pegi)
-    result = databaseManager.make_sql_request(put_sql_query)
-
-    databaseManager.close_sql_connection()
-
-    if result != "Done":
-        return {"Code": "401", "Server Response": "Cannot make insert games the request"}
-
-    return {"Code": "201", "Server Response": "Game well added to game library"}
-
 
 @app.delete("/deleteGame")
 def delete_games(game_name):

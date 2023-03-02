@@ -1,6 +1,3 @@
-from classes import *
-
-
 def get_sql_request_type_by_request_string(sql_request_string):
 
     if isinstance(sql_request_string, str):

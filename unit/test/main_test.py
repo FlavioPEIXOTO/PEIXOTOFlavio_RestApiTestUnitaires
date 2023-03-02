@@ -17,77 +17,172 @@ class TestAPI(unittest.TestCase):
     def tearDown(self):
         self.database_manager.delete_all_db_elements()
 
-    def test_root_endpoint(self):
+    '''/ : Main rest api route'''
+    def test_main(self):
         response = requests.get(self.url)
-        self.assertEqual(response.status_code, 200)
-        # self.assertEqual(response.content, '{"Code": "201", "ServerResponse" : "Welcome to GamingLibrary, an api rest to store games locally \n Also you can add users to manage too your game list"}')
-
-    def test_register_user(self):
-        data = {"username": "Flavio", "password": "abcde1234"}
-        response = requests.post(
-            self.url + "/register", data=json.dumps(data), headers=self.headers)
-        self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["Code"], "201")
 
+
+    '''/register : Adding a new user to database if doesn't already exist'''
+    def test_register_user(self):
+        # Initialize needed informations
+        data = {"username": "Flavio", "password": "abcde1234"}
+        get_user_request = '''SELECT * FROM users where username = "Flavio"'''
+
+        #Testing user to be added in database
         response = requests.post(
             self.url + "/register", data=json.dumps(data), headers=self.headers)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["Code"], "401")
+        self.assertEqual(response.status_code, 200) # Check if server response code is 200
+        self.assertEqual(response.json()["Code"], "201") # Check if personalized response code is 201
+        self.assertIsNotNone(self.database_manager.make_sql_request(get_user_request)) # check if user well registered into database
 
+
+        #Testing adding user that already exist
+        response = requests.post(
+            self.url + "/register", data=json.dumps(data), headers=self.headers)
+        self.assertEqual(response.status_code, 200) # Check if server response code is 200
+        self.assertEqual(response.json()["Code"], "401") # Check if personalized response code is 401
+
+        #Testing if not giving all needed informations in request body (giving only password in body and not username)
+        data = {"password": "newpass"}
+        response = requests.post(
+            self.url + "/register", data=json.dumps(data), headers=self.headers)
+        self.assertEqual(response.status_code, 422)
+
+
+    '''/modifyUsername : Modifying username for existing user'''
     def test_modify_username(self):
+        # Initialize needed informations
         data = {"username": "Flavio", "password": "flavioabcde"}
+        get_new_username_request = '''SELECT * FROM users where username = "flav"'''
+        get_old_username_request = '''SELECT * FROM users where username = "Flavio"'''
         response = requests.post(
             self.url + "/register", data=json.dumps(data), headers=self.headers)
-        self.assertEqual(response.status_code, 200)
+                
 
-        # data = {"old_user_name": "Flavio", "new_user_name": "flav"}
+        # Testing modify username "Flavio" by "flav" into database
         response = requests.post(
             self.url + "/modifyUsername?old_user_name=Flavio&new_user_name=flav", headers=self.headers)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["Code"], "201")
+        self.assertEqual(response.status_code, 200) # Check if server response code is 200
+        self.assertEqual(response.json()["Code"], "201") # Check if personalized response code is 201
+        self.assertIsNotNone(self.database_manager.make_sql_request(get_new_username_request)) # check if user username as beig well modified into database
+        self.assertIsNone(self.database_manager.make_sql_request(get_old_username_request)) # check if old username is not into database
 
-        # Modifying an username not founded
-        # response = requests.post(
-        #    self.url + "/modifyUsername", data=json.dumps(data), headers=self.headers)
+        # Testing modifying an username not founded
         response = requests.post(
             self.url + "/modifyUsername?old_user_name=Bob&new_user_name=Bo", headers=self.headers)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["Code"], "401")
+        self.assertEqual(response.status_code, 200) # Check if server response code is 200
+        self.assertEqual(response.json()["Code"], "401") # Check if personalized response code is 401
 
+        #Testing if not giving all needed query params
+        response = requests.post(
+            self.url + "/modifyUsername?old_user_name=Bo", headers=self.headers)
+        self.assertEqual(response.status_code, 422)
+
+
+    '''/User : Get all users from users SQLITE database'''
     def test_get_all_users(self):
-        data = {"username": "Bob", "password": "Bobabcd"}
+        response = requests.get(self.url + "/User")
+        get_users_request = '''SELECT * from users'''
+
+        #Testing if there is none users into database
+        self.assertEqual(response.status_code, 200) # Check if server response code is 200
+        self.assertEqual(response.json()["Code"], "401") # Check if personalized response code is 401
+        self.assertIsNone(self.database_manager.make_sql_request(get_users_request)) # check if none user exist into database
+
+        #Initialize needed informations
+        data = {"username": "Flavio", "password": "flavioabcd"}
         data_second = {"username": "Pierre", "password": "Pierreabcd"}
         response = requests.post(
             self.url + "/register", data=json.dumps(data), headers=self.headers)
         response = requests.post(
             self.url + "/register", data=json.dumps(data_second), headers=self.headers)
-
+        
+        #Testing getting all users from database when at least one exist
         response = requests.get(self.url + "/User")
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["Code"], "201")
+        self.assertEqual(response.status_code, 200) # Check if server response code is 200
+        self.assertEqual(response.json()["Code"], "201") # Check if personalized response code is 401
+        self.assertEqual(response.json()["Server Response"][0], [1, "Flavio", "flavioabcd"])
+        self.assertEqual(response.json()["Server Response"][1], [2, "Pierre", "Pierreabcd"])
+        self.assertIsNotNone(self.database_manager.make_sql_request(get_users_request)) # check if users exist into database
 
+
+    '''/insertGames : Insert a game into games SQLITE database'''
     def test_insert_game(self):
+        #Initialized neede informations
         data = {"name": "Valorant", "description": "Jeu shooter en première personne développé par Riot Games",
                 "genre": "FPS", "annee": 2020, "pegi": 16}
+        get_game_request = '''SELECT * from games where name = "Valorant"'''
         response = requests.put(self.url + "/insertGame",
                                 data=json.dumps(data), headers=self.headers)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["Code"], "201")
+        
+        #Testing if game is well added to database
+        self.assertEqual(response.status_code, 200) # Check if server response code is 200
+        self.assertEqual(response.json()["Code"], "201") # Check if personalized response code is 201
+        self.assertIsNotNone(self.database_manager.make_sql_request(get_game_request)) # Check if games exist into database
 
+        #Testing if not giving all needed body params
+        data = {"name": "Gta V", "description": "Rockstar Games"}
+        response = requests.put(self.url + "/insertGame",
+                data=json.dumps(data), headers=self.headers)
+        self.assertEqual(response.status_code, 422)
+
+
+    '''/myGames : Getting all games from games SQLITE database'''
     def test_get_all_games(self):
+        get_games_request = '''SELECT * FROM games'''
+        response = requests.get(self.url + "/myGames")
+
+        #Testing in case of there is any existing games into database
+        self.assertEqual(response.status_code, 200) # Check if server response code is 200
+        self.assertEqual(response.json()["Code"], "401") # Check if personalized response code is 401
+        self.assertIsNone(self.database_manager.make_sql_request(get_games_request)) # check if none game exist into database
+
+
+        #Initialized needed informations
         data = {"name": "Valorant", "description": "Jeu shooter en première personne développé par Riot Games",
                 "genre": "FPS", "annee": 2020, "pegi": 16}
         response = requests.put(self.url + "/insertGame",
                                 data=json.dumps(data), headers=self.headers)
-
-        data_second = {"name": "League of Legends", "description": "Jeu tps développé par Riot Games",
-                       "genre": "FPS", "annee": 2020, "pegi": 16}
+        data = {"name": "GTA V", "description": "JRockstar Games",
+                "genre": "Action, TPS, FPS", "annee": 2012, "pegi": 18}
         response = requests.put(self.url + "/insertGame",
-                                data=json.dumps(data_second), headers=self.headers)
+                                data=json.dumps(data), headers=self.headers)
 
+        # Testing getting all games stored into database
         response = requests.get(self.url + "/myGames")
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["Code"], "201")
+        self.assertEqual(response.status_code, 200) # Check if server response code is 200
+        self.assertEqual(response.json()["Code"], "201") # Check if personalized response code is 201
+        self.assertIsNotNone(self.database_manager.make_sql_request(get_games_request)) # Check if games exist into database
+
+    '''/deleteGame : Delegate a game if it exist from database by name'''
+    def test_delete_games(self):
+        # Initialize need informations
+        get_games_request = '''SELECT * FROM games where name = "Valorant"'''
+        data = {"name": "Valorant", "description": "Jeu shooter en première personne développé par Riot Games",
+                "genre": "FPS", "annee": 2020, "pegi": 16}
+        response = requests.put(self.url + "/insertGame",
+                                data=json.dumps(data), headers=self.headers)
+        
+
+        #Testing deleting game if exist
+        self.assertIsNotNone(self.database_manager.make_sql_request(get_games_request)) # Check if game with name Valorant exist into database
+
+        response = requests.delete(
+            self.url + "/deleteGame?game_name=Valorant", headers=self.headers)
+        
+        self.assertEqual(response.status_code, 200) # Check if server response code is 200
+        self.assertEqual(response.json()["Code"], "201") # Check if personalized response code is 201
+        self.assertIsNone(self.database_manager.make_sql_request(get_games_request)) # check if game with name that is Valorant do not anymore exist into database
+
+
+        #Testion deleting game if not exist
+        response = requests.delete(
+            self.url + "/deleteGame?game_name=Valorant", headers=self.headers)
+        
+        self.assertEqual(response.status_code, 200) # Check if server response code is 200
+        self.assertEqual(response.json()["Code"], "401") # Check if personalized response code is 201
+        self.assertIsNone(self.database_manager.make_sql_request(get_games_request)) # check if game with name that is Valorant do not anymore exist into database
 
 
 if __name__ == "__main__":
