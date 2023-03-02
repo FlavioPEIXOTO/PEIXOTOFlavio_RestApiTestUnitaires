@@ -7,8 +7,10 @@ Deux tables sont présentes dans la base de données :
     - users
     - games
 
+Les test sont principalement réalisés pour les différentes routes de l'API REST ; Quelques tests sont réalisés pour les requêtes SQL à travers la classe DatabaseManager qui permet la gestion de la base de données SQLITE
 
-Lancement du projet :
+
+===> Lancement du projet :
 
 Afin de faire fonctionner le projet voici les étapes :
     - pull le projet git
