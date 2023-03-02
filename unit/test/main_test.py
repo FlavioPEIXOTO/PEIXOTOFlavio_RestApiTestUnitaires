@@ -185,5 +185,56 @@ class TestAPI(unittest.TestCase):
         self.assertIsNone(self.database_manager.make_sql_request(get_games_request)) # check if game with name that is Valorant do not anymore exist into database
 
 
+class TestDatabaseManager(unittest.TestCase):
+    
+    def setUp(self):
+        self.db_manager = DatabaseManager('pyRestApi.db')
+
+    def test_make_sql_request_users_table(self):
+
+        # Initialized needed informations
+        insert_user_request = '''INSERT INTO users(id, username, password) VALUES ("1", "Flavio", "flavioabcd")'''
+        select_user_request = '''SELECT * FROM users where username = "Flavio"'''
+        update_user_request = '''UPDATE users set username = "Bob" where username = "Flavio"'''
+
+        request_insert_result = self.db_manager.make_sql_request(insert_user_request)
+        request_get_result = self.db_manager.make_sql_request(select_user_request)
+       
+        # Testing return of adding user to SQLITE database
+        self.assertEqual(request_insert_result, "Done")
+
+        #Testing return of select query from SQLITE database
+        self.assertEqual(request_get_result, [(1, "Flavio", "flavioabcd")])
+        self.assertIsNotNone(request_get_result)
+
+        #Testing to update user by username
+        request_update_result = self.db_manager.make_sql_request(update_user_request)
+        self.assertEqual(request_update_result, "Done")
+
+
+    def test_make_sql_request_games_table(self):
+        # Initialized needed informations
+        insert_game_request = '''INSERT INTO games(id, name, description, genre, annee, pegi) VALUES ("1", "Valorant", "Riot games", "FPS", 2020, 16)'''
+        select_game_request = '''SELECT * FROM games'''
+        delete_game_request = '''DELETE from games'''
+
+        request_insert_result = self.db_manager.make_sql_request(insert_game_request)
+        request_get_result = self.db_manager.make_sql_request(select_game_request)
+
+        # Testing return of adding game to SQLITE database
+        self.assertEqual(request_insert_result, "Done")
+
+        #Testing return of select query from SQLITE database
+        self.assertEqual(request_get_result, [(1, "Valorant", "Riot games", "FPS", 2020, 16)])
+        self.assertIsNotNone(request_get_result)
+
+        #Testion to delete games in SQLITE database
+        request_delete_result = self.db_manager.make_sql_request(delete_game_request)
+        self.assertEqual(request_delete_result, "Done")
+
+    def tearDown(self):
+        self.db_manager.delete_all_db_elements()
+        self.db_manager.close_sql_connection()
+
 if __name__ == "__main__":
     unittest.main()
